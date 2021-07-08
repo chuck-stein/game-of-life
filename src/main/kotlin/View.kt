@@ -1,3 +1,4 @@
+import androidx.compose.desktop.LocalAppWindow
 import androidx.compose.desktop.Window
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
@@ -5,13 +6,11 @@ import androidx.compose.material.Button
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -19,6 +18,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 fun main() = Window(
@@ -31,13 +31,26 @@ fun main() = Window(
 ) {
     val state by programState.collectAsState(InitialState)
     val gameCalculationScope = rememberCoroutineScope { Dispatchers.Default }
-    
+    var gameOfLifeJob: Job? by remember { mutableStateOf(null) }
+
+    fun launchGameOfLife() {
+        gameOfLifeJob?.cancel()
+        gameOfLifeJob = gameCalculationScope.launch { runGameOfLife() }
+    }
+
+    LocalAppWindow.current.let { window ->
+        window.keyboard.setShortcut(Key.Escape) {
+            window.close()
+        }
+        window.keyboard.setShortcut(Key.Spacebar) {
+            if (state is GameOfLifeState) launchGameOfLife() // restart if already underway
+        }
+    }
+
     MaterialTheme {
         state.let { currentState ->
             when (currentState) {
-                is InitialState -> Menu(
-                    onStartClick = { gameCalculationScope.launch { runGameOfLife() } }
-                )
+                is InitialState -> Menu(onStartClick = ::launchGameOfLife)
                 is GameOfLifeState -> GameOfLife(currentState)
             }
         }
